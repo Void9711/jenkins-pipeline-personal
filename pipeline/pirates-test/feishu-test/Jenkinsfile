@@ -1,7 +1,5 @@
-pipeline{
-    agent {
-        label 'os:linux'
-    }
+pipeline {
+    agent any
     options {
         skipDefaultCheckout()
         disableConcurrentBuilds()
@@ -11,10 +9,15 @@ pipeline{
         ansiColor('xterm')
     }
     stages {
-        stage('Nothing'){
+        stage('Nothing') {
             steps {
                 echo "========Do nothing========"
             }
+        }
+    }
+    post {
+        always {
+            feishuNotify what: "Complete"
         }
     }
 }
