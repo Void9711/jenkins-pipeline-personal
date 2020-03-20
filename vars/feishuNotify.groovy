@@ -5,8 +5,8 @@ def getDescription(what) {
 }
 
 def feishuSend(channel, what) {
-    withCredentials([string(variable: 'PUSH_URL', credentialsId: channel)]) {
-        discordSend webhookUrl: PUSH_URL, description: getDescription(what), link: env.BUILD_URL
+    withCredentials([string(variable: 'PUSH_URL', credentialsId: 'feishu-push')]) {
+        echo PUSH_URL
     }
 }
 
