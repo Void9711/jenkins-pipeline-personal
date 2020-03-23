@@ -6,7 +6,7 @@ def getDescription(what) {
 
 def feishuSend(channel, what) {
     withCredentials([string(variable: 'PUSH_URL', credentialsId: 'feishu-push')]) {
-        discordSend description: "Jenkins Pipeline Build", footer: "Footer Text", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "${PUSH_URL}"
+        discordSend description: '{"title": "Hello Feishu", "text": "Good Feishu"}', footer: "Footer Text", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "${PUSH_URL}"
     }
 }
 
