@@ -1,9 +1,7 @@
 #!/usr/bin/env groovy
 
 import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 import java.net.URLEncoder
-import java.util.Map
 
 def retryMax = 3
 
@@ -19,22 +17,19 @@ def getAccessToken(tokenUrl, appId, appSecret) {
     ]
     def response = httpRequest(
         url: tokenUrl,
-        httpMode: 'GET',
+        httpMode: 'POST',
         contentType: 'APPLICATION_JSON',
         requestBody: JsonOutput.toJson(body)
     )
-    def statusCode = response.getStatus()
-    def content = response.getContent()
+    def statusCode = response.status
+    def content = response.content
     if (statusCode == 200) {
-        def jsonSlurper = new JsonSlurper()
-        def contentMap = jsonSlurper.parseText(content)
-        assert contentMap instanceof Map
-        def code = contentMap.code
+        def contentJson = readJSON(text: content)
+        def code = contentJson.code
         if (code == 0) {
-            echo "${contentMap.tenant_access_token}"
-            return contentMap.tenant_access_token
+            return contentJson.tenant_access_token
         } else {
-            echo "Get access token failed, status ${code}, message: \n${contentMap.msg}"
+            echo "Get access token failed, error ${code}, message: ${contentJson.msg}"
             return ''
         }
     } else {
