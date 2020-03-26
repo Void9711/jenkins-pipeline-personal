@@ -1,0 +1,10 @@
+credential: feishu-certificate
+tokenUrl: 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/'
+defaultChannel: Test
+channels:
+  - id: Test
+    name: Pirates-Test
+    chatId: oc_c0b3d582e2418b07dd26ee582d781348
+  - id: JenkinsIntranet
+    name: \[Pirates\]Jenkins
+    chatId: oc_c0b3d582e2418b07dd26ee582d781348
