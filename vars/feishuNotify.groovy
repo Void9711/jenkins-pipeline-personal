@@ -1,9 +1,6 @@
 #!/usr/bin/env groovy
 
 import groovy.json.JsonOutput
-import java.net.URLEncoder
-
-def retryMax = 3
 
 def loadFeishuConf() {
     def resource = libraryResource 'feishuConf.yaml'
@@ -95,6 +92,7 @@ def getFeishuMessage(what, duration) {
 
 def sendFeishu(channel, what, attachmentText, color) {
     def feishuConf = loadFeishuConf()
+    def retryMax = 3
 
     if (channel == '') {
         channel = feishuConf.defaultChannel
@@ -116,12 +114,12 @@ def sendFeishu(channel, what, attachmentText, color) {
     ]
 
     echo JsonOutput.prettyPrint(JsonOutput.toJson(body))
+    def requestBody = JsonOutput.toJson(body)
 
-    withCredentials([usernamePassword(credentialsId: feishuConf.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
-        getAccessToken(feishuConf.tokenUrl, env.APP_ID, env.APP_SECRET)
-    }
+    sendMessage(feishuConf.pushUrl, requestBody, retryMax)
 }
 
+// See https://open.feishu.cn/document/ukTMukTMukTM/uADOwUjLwgDM14CM4ATN
 def getMessageCard(what, attachmentText, color) {
     def elements = []
     def fields = []
@@ -146,7 +144,6 @@ def getMessageCard(what, attachmentText, color) {
         "is_short": false,
         "text": getTextField('lark_md', content)
     ]
-
     fields.add(field)
 
     def element = [
@@ -154,7 +151,6 @@ def getMessageCard(what, attachmentText, color) {
         "text": getTextField('lark_md', title),
         "fields": fields
     ]
-
     elements.add(element)
 
     return messageCard
@@ -167,8 +163,37 @@ def getTextField(tag, content) {
     ]
 }
 
-def sendMessage(url, request, retry) {
-
+def sendMessage(url, requestBody, retry) {
+    if (retry < 0) {
+        echo 'Failed to send message, retry reached max value.'
+        return
+    }
+    def feishuConf = loadFeishuConf()
+    withCredentials([usernamePassword(credentialsId: feishuConf.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
+        def token = getAccessToken(feishuConf.tokenUrl, env.APP_ID, env.APP_SECRET)
+        def response = httpRequest(
+            url: url,
+            customHeaders: [[name: 'Authorization', value: "Bearer ${token}", maskValue: true]],
+            httpMode: 'POST',
+            contentType: 'APPLICATION_JSON',
+            requestBody: requestBody
+        )
+        def statusCode = response.status
+        def content = response.content
+        if (statusCode == 200) {
+            def contentJson = readJSON(text: content)
+            def code = contentJson.code
+            if (code != 0) {
+                echo "Failed to send message, error code: ${code}, message: ${contentJson.msg}."
+                retry--
+                sendMessage(url, requestBody, retry)
+            }
+        } else {
+            echo "Failed to send message, status ${statusCode}, content: \n${content}"
+            retry--
+            sendMessage(url, requestBody, retry)
+        }
+    }
 }
 
 def call(channel, message, attachmentText='', color='') {
@@ -206,7 +231,7 @@ def call(Map params = [:]) {
 
     def message = getFeishuMessage(what, duration)
     if (withSummary || withChanges) {
-        sendFeishu(channel, message, attachmentText, color)
+        sendFeishu(channel, message, attachmentText, 'red')
     } else {
         sendFeishu(channel, message, '', '')
     }

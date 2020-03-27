@@ -1,5 +1,6 @@
 credential: feishu-certificate
 tokenUrl: 'https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/'
+pushUrl: 'https://open.feishu.cn/open-apis/message/v4/send/'
 defaultChannel: Test
 channels:
   - id: Test
