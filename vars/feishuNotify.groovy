@@ -19,18 +19,12 @@ def getAccessToken(tokenUrl, appId, appSecret) {
         requestBody: JsonOutput.toJson(body)
     )
     def statusCode = response.status
-    def content = response.content
-    if (statusCode == 200) {
-        def contentJson = readJSON(text: content)
-        def code = contentJson.code
-        if (code == 0) {
-            return contentJson.tenant_access_token
-        } else {
-            echo "Get access token failed, error ${code}, message: ${contentJson.msg}"
-            return ''
-        }
+    def contentJson = readJSON(text: response.content)
+    def code = contentJson.code
+    if (code == 0) {
+        return contentJson.tenant_access_token
     } else {
-        echo "Get access token failed, status ${statusCode}, content: \n${content}"
+        echo "Get access token failed, error ${code}, message: ${contentJson.msg}"
         return ''
     }
 }
@@ -179,17 +173,10 @@ def sendMessage(url, requestBody, retry) {
             requestBody: requestBody
         )
         def statusCode = response.status
-        def content = response.content
-        if (statusCode == 200) {
-            def contentJson = readJSON(text: content)
-            def code = contentJson.code
-            if (code != 0) {
-                echo "Failed to send message, error code: ${code}, message: ${contentJson.msg}."
-                retry--
-                sendMessage(url, requestBody, retry)
-            }
-        } else {
-            echo "Failed to send message, status ${statusCode}, content: \n${content}"
+        def contentJson = readJSON(text: response.content)
+        def code = contentJson.code
+        if (code != 0) {
+            echo "Failed to send message, error code: ${code}, message: ${contentJson.msg}."
             retry--
             sendMessage(url, requestBody, retry)
         }
@@ -231,7 +218,7 @@ def call(Map params = [:]) {
 
     def message = getFeishuMessage(what, duration)
     if (withSummary || withChanges) {
-        sendFeishu(channel, message, attachmentText, 'red')
+        sendFeishu(channel, message, attachmentText, color)
     } else {
         sendFeishu(channel, message, '', '')
     }

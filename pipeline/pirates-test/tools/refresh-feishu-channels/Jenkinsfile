@@ -1,0 +1,115 @@
+#!/usr/bin/env groovy
+
+CHAT_ID = ''
+
+def loadFeishuConf() {
+    def resource = libraryResource 'feishuConf.yaml'
+    return readYaml(text: resource)
+}
+
+def getChatId(name) {
+    def feishuConf = env.FEISHU_CONF
+    def chatListUrl = feishuConf.chatListUrl
+    def token = getFeishuToken()
+
+    def response = httpRequest(
+        url: chatListUrl,
+        customHeaders: [[name: 'Authorization', value: "Bearer ${token}", maskValue: true]],
+        httpMode: 'GET'
+    )
+
+    def statusCode = response.status
+    def contentJson = readJSON(text: response.content)
+    def code = contentJson.code
+    if (code == 0) {
+        def chatList = contentJson.data.groups
+        def size = chatList.size()
+        for (int i = 0; i < size; i++) {
+            if (chatList[i].name == name) {
+                return chatList[i].chat_id
+            }
+        }
+    } else {
+        echo "Get chat list failed, error ${code}, message: ${contentJson.msg}"
+        return ''
+    }
+}
+
+def refreshChannels(id, name, chatId) {
+    def feishuConf = env.FEISHU_CONF
+    def channels = feishuConf.channels
+    def size = channels.size
+
+    for (int i = 0; i < size; i++) {
+        if (channels[i].chatId == chatId) {
+            setChannel(channels, i, id, name, chatId)
+            return
+        }
+    }
+
+    setChannel(channels, size, id, name, chatId)
+
+    feishuConf.channels = channels
+    writeYAML(file: 'feishuConf.yaml', data: feishuConf)
+}
+
+def setChannel(channels, index, id, name, chatId) {
+    channels[index].id = id
+    channels[index].name = name
+    channels[index].chatId = chatId
+}
+
+pipeline {
+    agent any
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(
+            daysToKeepStr: '15',
+            artifactNumToKeepStr: '20'
+        ))
+        ansiColor('xterm')
+    }
+    parameters {
+        string(name: 'ID',
+            defaultValue: '',
+            description: 'Unique defined id for a chat channel. Example: JenkinsIntranet'
+            trim: true)
+        string(name: 'NAME',
+            defaultValue: '',
+            description: 'Name of the chat channel. Example: [Pirates]Jenkins')
+    }
+    environment {
+        FEISHU_CONF = loadFeishuConf()
+    }
+    stages {
+        stage('Clean') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Get Channel ID') {
+            steps {
+                srcipt {
+                    CHAT_ID = getChatId(env.NAME)
+                    if (CHAT_ID == '') {
+                        currentBuild.result = 'FAILURE'
+                    }
+                }
+            }
+        }
+        stage('Refresh') {
+            steps {
+                refreshChannels(env.ID, env.NAME, CHAT_ID)
+            }
+        }
+        stage('Archive') {
+            archiveArtifacts artifacts: 'feishuConf.yaml', onlyIfSuccessful: true
+        }
+    }
+    post {
+        always {
+            feishuNotify what: "Success", withDuration: true, withSummary: true, withChanges: true
+        }
+    }
+}
