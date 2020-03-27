@@ -96,57 +96,75 @@ def getFeishuMessage(what, duration) {
 def sendFeishu(channel, what, attachmentText, color) {
     def feishuConf = loadFeishuConf()
 
+    if (channel == '') {
+        channel = feishuConf.defaultChannel
+    }
+
+    def channels = feishuConf.channels
+    def channelNum = channels.size()
+    def chatId = ''
+    for (int i = 0; i < channelNum; i++) {
+        if (channels[i].id == channel) {
+            chatId = channels[i].chatId
+        }
+    }
+
+    def body = [
+        'chat_id': chatId,
+        'msg_type': 'interactive',
+        'card': getMessageCard(what, attachmentText, color)
+    ]
+
+    echo JsonOutput.prettyPrint(JsonOutput.toJson(body))
+
     withCredentials([usernamePassword(credentialsId: feishuConf.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
         getAccessToken(feishuConf.tokenUrl, env.APP_ID, env.APP_SECRET)
     }
+}
 
-    // if (channel == '') {
-    //     channel = feishuConf.defaultChannel
-    // }
+def getMessageCard(what, attachmentText, color) {
+    def elements = []
+    def fields = []
 
-    // def channels = feishuConf.channels
-    // def channelNum = channels.size()
-    // def chatId = ''
-    // for (int i = 0; i < channelNum; i++) {
-    //     if (channels[i].id == channel) {
-    //         chatId = channels[i].chatId
-    //     }
-    // }
+    def messageCard = [
+        'elements': elements
+    ]
 
-    // def content = ''
-    // if (color == '') {
-    //     content = what
-    // } else {
-    //     content = '<font color="'+color+'">●</font>  '+what
-    // }
+    def title = ''
+    if (color == '') {
+        title = what
+    } else {
+        title = '<font color="'+color+'">●</font>  '+what
+    }
 
-    // if (attachmentText != '') {
-    //    content = content +'\n'+attachmentText
-    // } 
+    def content = ''
+    if (attachmentText != '') {
+       content = attachmentText
+    }
 
-    // def markdownContent = [
-    //     'content': content
-    // ]
+    def field = [
+        "is_short": false,
+        "text": getTextField('lark_md', content)
+    ]
 
-    // def body = [
-    //     'chat_id': chatId,
-    //     'msg_type': 'interactive',
-    //     'markdown': markdownContent
-    // ]
+    fields.add(field)
 
-    // withCredentials([string(credentialsId: feishuConf.credential, variable: 'PUSH_SECRET_KEY')]) {
-    //     def endpoint = feishuConf.endpoint
+    def element = [
+        "tag": "div",
+        "text": getTextField('lark_md', title),
+        "fields": fields
+    ]
 
-    //     def response = httpRequest(url: endpoint,
-    //         httpMode: 'POST',
-    //         contentType: 'APPLICATION_JSON',
-    //         customHeaders: [[name: 'X-SecretKey', value: env.PUSH_SECRET_KEY, maskValue: true]],
-    //         requestBody: JsonOutput.toJson(body)
-    //     )
+    elements.add(element)
 
-    //     echo "[Feishu notify] HTTP status ${response.status}"
-    //     echo "[Feishu notify] HTTP content:\n${response.content}"
-    // }
+    return messageCard
+}
+
+def getTextField(tag, content) {
+    return [
+        'tag': tag,
+        'content': content
+    ]
 }
 
 def sendMessage(url, request, retry) {
@@ -175,7 +193,7 @@ def call(Map params = [:]) {
     def withDuration = params.get('withDuration', false)
     def duration = withDuration ? " after ${getReadableDuration()}" : ''
 
-    def attachmentText = "${summaryText} \n>${changesText}"
+    def attachmentText = "${summaryText} \n${changesText}"
 
     // Prevent blank lines
     if (!withSummary && withChanges) {
