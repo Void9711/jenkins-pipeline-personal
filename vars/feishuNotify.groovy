@@ -81,7 +81,7 @@ def getChangesText(changesMaxNum) {
 }
 
 def getFeishuMessage(what, duration) {
-    return "[${env.JOB_NAME}](${env.JOB_URL}) - [#${env.BUILD_NUMBER}](${env.BUILD_URL}) ${what}${duration}"
+    return "[${env.JOB_NAME}](${env.JOB_URL}) - [#${env.BUILD_NUMBER}](${env.BUILD_URL}) **${what}**${duration}"
 }
 
 def sendFeishu(channel, what, attachmentText, color) {

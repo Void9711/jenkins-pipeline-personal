@@ -1,6 +1,6 @@
 #!/usr/bin/env groovy
 
-CHAT_ID = ''
+def CHAT_ID = ''
 
 def loadFeishuConf() {
     def resource = libraryResource 'feishuConf.yaml'
@@ -73,7 +73,7 @@ pipeline {
     parameters {
         string(name: 'ID',
             defaultValue: '',
-            description: 'Unique defined id for a chat channel. Example: JenkinsIntranet'
+            description: 'Unique defined id for a chat channel. Example: JenkinsIntranet',
             trim: true)
         string(name: 'NAME',
             defaultValue: '',
@@ -90,8 +90,8 @@ pipeline {
         }
         stage('Get Channel ID') {
             steps {
-                srcipt {
-                    CHAT_ID = getChatId(env.NAME)
+                script {
+                    CHAT_ID = getChatId(params.NAME)
                     if (CHAT_ID == '') {
                         currentBuild.result = 'FAILURE'
                     }
@@ -100,16 +100,21 @@ pipeline {
         }
         stage('Refresh') {
             steps {
-                refreshChannels(env.ID, env.NAME, CHAT_ID)
+                refreshChannels(params.ID, params.NAME, CHAT_ID)
             }
         }
         stage('Archive') {
-            archiveArtifacts artifacts: 'feishuConf.yaml', onlyIfSuccessful: true
+            steps {
+                archiveArtifacts artifacts: 'feishuConf.yaml', onlyIfSuccessful: true
+            }
         }
     }
     post {
-        always {
+        success {
             feishuNotify what: "Success", withDuration: true, withSummary: true, withChanges: true
+        }
+        failure {
+            feishuNotify what: "Failure", withDuration: true, withSummary: true, withChanges: true
         }
     }
 }
