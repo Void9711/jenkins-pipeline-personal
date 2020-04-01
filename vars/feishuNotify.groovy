@@ -3,7 +3,7 @@
 import groovy.json.JsonOutput
 
 def loadFeishuConf() {
-    def resource = libraryResource 'feishuConf.yaml'
+    def resource = libraryResource 'feishu.yaml'
     return readYaml(text: resource)
 }
 
@@ -81,7 +81,7 @@ def getChangesText(changesMaxNum) {
 }
 
 def getFeishuMessage(what, duration) {
-    return "[${env.JOB_NAME}](${env.JOB_URL}) - [#${env.BUILD_NUMBER}](${env.BUILD_URL}) **${what}**${duration}"
+    return "[${env.JOB_NAME}](${env.JOB_URL}) - [#${env.BUILD_NUMBER}](${env.BUILD_URL}) ${what}${duration}"
 }
 
 def sendFeishu(channel, what, attachmentText, color) {
@@ -92,14 +92,7 @@ def sendFeishu(channel, what, attachmentText, color) {
         channel = feishuConf.defaultChannel
     }
 
-    def channels = feishuConf.channels
-    def channelNum = channels.size()
-    def chatId = ''
-    for (int i = 0; i < channelNum; i++) {
-        if (channels[i].id == channel) {
-            chatId = channels[i].chatId
-        }
-    }
+    def chatId = getChatId(channel)
 
     def body = [
         'chat_id': chatId,
@@ -107,10 +100,20 @@ def sendFeishu(channel, what, attachmentText, color) {
         'card': getMessageCard(what, attachmentText, color)
     ]
 
-    echo JsonOutput.prettyPrint(JsonOutput.toJson(body))
     def requestBody = JsonOutput.toJson(body)
 
     sendMessage(feishuConf.pushUrl, requestBody, retryMax)
+}
+
+def getChatId(channel) {
+    def channelList = loadFeishuConf().channels
+    def channelNum = channelList.size()
+    for (int i = 0; i < channelNum; i++) {
+        if (channelList[i].id == channel) {
+            return channelList[i].chatId
+        }
+    }
+    return ''
 }
 
 // See https://open.feishu.cn/document/ukTMukTMukTM/uADOwUjLwgDM14CM4ATN
@@ -118,7 +121,12 @@ def getMessageCard(what, attachmentText, color) {
     def elements = []
     def fields = []
 
+    def config = [
+        "wide_screen_mode": true
+    ]
+
     def messageCard = [
+        'config': config,
         'elements': elements
     ]
 
