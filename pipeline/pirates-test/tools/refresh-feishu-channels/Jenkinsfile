@@ -50,7 +50,7 @@ def refreshChannels(id, name, chatId) {
     setChannel(channels, size, id, name, chatId)
 
     feishuConf.channels = channels
-    writeYAML(file: 'feishuConf.yaml', data: feishuConf)
+    writeYAML(file: 'feishu.yaml', data: feishuConf)
 }
 
 def setChannel(channels, index, id, name, chatId) {
