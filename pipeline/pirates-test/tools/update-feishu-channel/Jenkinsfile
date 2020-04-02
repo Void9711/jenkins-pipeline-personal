@@ -2,18 +2,20 @@
 
 CHAT_ID = ''
 
-def loadFeishuConf() {
-    def resource = libraryResource 'feishu.yaml'
-    return readYaml(text: resource)
+def getChannels() {
+    return env.FEISHU_CONF.channels
 }
 
 def getChatId(name) {
     def feishuConf = env.FEISHU_CONF
-    def chatListUrl = feishuConf.chatListUrl
-    def token = getFeishuToken()
+    def token
+
+    withCredentials([usernamePassword(credentialsId: feishuConf.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
+        token = feishuNotify.getAccessToken(feishuConf.tokenUrl, env.APP_ID, env.APP_SECRET)
+    }
 
     def response = httpRequest(
-        url: chatListUrl,
+        url: feishuConf.chatListUrl,
         customHeaders: [[name: 'Authorization', value: "Bearer ${token}", maskValue: true]],
         httpMode: 'GET'
     )
@@ -35,28 +37,37 @@ def getChatId(name) {
     }
 }
 
-def refreshChannels(id, name, chatId) {
-    def feishuConf = env.FEISHU_CONF
-    def channels = feishuConf.channels
+def validateId(id) {
+    def channels = getChannels()
+    def size = channels.size
+
+    for (int i = 0; i < size; i++) {
+        if (channels[i].id == id) {
+            echo 'ERROR: Requested id ${id} already exists.'
+            currentBuild.result = 'FAILURE'
+        }
+    }
+}
+
+def validateChatId(chatId) {
+    def channels = getChannels()
     def size = channels.size
 
     for (int i = 0; i < size; i++) {
         if (channels[i].chatId == chatId) {
-            setChannel(channels, i, id, name, chatId)
-            return
+            echo 'ERROR: Requested chat channel already exists.'
+            currentBuild.result = 'FAILURE'
         }
     }
-
-    setChannel(channels, size, id, name, chatId)
-
-    feishuConf.channels = channels
-    writeYAML(file: 'feishu.yaml', data: feishuConf)
 }
 
-def setChannel(channels, index, id, name, chatId) {
-    channels[index].id = id
-    channels[index].name = name
-    channels[index].chatId = chatId
+def writeToFile(channelId, channelName, chatId) {
+    def data = [
+        'id': '${channelId}',
+        'name': "'${channelName}'",
+        'chatId': '${chatId}'
+    ]
+    writeYaml file: 'channel.yaml', data: data
 }
 
 pipeline {
@@ -80,7 +91,7 @@ pipeline {
             description: 'Name of the chat channel. Example: [Pirates]Jenkins')
     }
     environment {
-        FEISHU_CONF = loadFeishuConf()
+        FEISHU_CONF = feishuNotify.loadFeishuConf()
     }
     stages {
         stage('Clean') {
@@ -88,33 +99,25 @@ pipeline {
                 cleanWs()
             }
         }
-        stage('Get Channel ID') {
+        stage('Get Chat ID') {
             steps {
                 script {
+                    validateId(env.ID)
                     CHAT_ID = getChatId(params.NAME)
                     if (CHAT_ID == '') {
+                        echo 'ERROR: Requested chat channel not found.'
                         currentBuild.result = 'FAILURE'
+                    } else {
+                        validateChatId(CHAT_ID)
                     }
                 }
             }
         }
-        stage('Refresh') {
-            steps {
-                refreshChannels(params.ID, params.NAME, CHAT_ID)
-            }
-        }
         stage('Archive') {
             steps {
-                archiveArtifacts artifacts: 'feishuConf.yaml', onlyIfSuccessful: true
+                writeToFile(params.ID, params.NAME, CHAT_ID)
+                archiveArtifacts artifacts: 'channel.yaml', onlyIfSuccessful: true
             }
-        }
-    }
-    post {
-        success {
-            feishuNotify what: "Success", withDuration: true, withSummary: true, withChanges: true
-        }
-        failure {
-            feishuNotify what: "Failure", withDuration: true, withSummary: true, withChanges: true
         }
     }
 }
