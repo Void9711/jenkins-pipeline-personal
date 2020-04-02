@@ -1,9 +1,9 @@
 #!/usr/bin/env groovy
 
-def CHAT_ID = ''
+CHAT_ID = ''
 
 def loadFeishuConf() {
-    def resource = libraryResource 'feishuConf.yaml'
+    def resource = libraryResource 'feishu.yaml'
     return readYaml(text: resource)
 }
 
