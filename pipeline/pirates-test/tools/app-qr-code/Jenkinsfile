@@ -1,0 +1,259 @@
+#!/usr/bin/env groovy
+import groovy.json.JsonOutput
+
+FEISHU_CHANNEL = 'Test'
+
+FEISHU_CONF = feishuNotify.loadFeishuConf()
+
+UPLOAD_URL = FEISHU_CONF.imageUrl
+
+PUSH_URL = FEISHU_CONF.pushUrl
+
+METADATA = [:]
+
+FTP_APK_URL = ''
+FTP_CLIENT_URL = ''
+
+def getAppinhouseIOSUrl() {
+    def buildEnv = buildTargetUtils.getBuildEnv()
+    return "https://apps.rog2.org:4433/index_pc.html?app=pirates-${buildEnv}"
+}
+
+def getJenkinsBuildDate(url) {
+    def response = httpRequest "${url}/buildTimestamp"
+    assert response.status == 200
+    return response.content
+}
+
+def getJenkinsBuildNumber(url) {
+    def response = httpRequest "${url}/buildNumber"
+    assert response.status == 200
+    return response.content
+}
+
+def getJenkinsArtifactUrl(job, build, glob) {
+    def urls = artifactUrls job: job, build: build, glob: glob
+    assert urls.size() > 0
+    return urls[0]
+}
+
+def getFeishuAccessToken() {
+    def token = ''
+    withCredentials([usernamePassword(credentialsId: FEISHU_CONF.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
+        token = feishuNotify.getAccessToken(FEISHU_CONF.tokenUrl, env.APP_ID, env.APP_SECRET)
+    }
+    return token
+}
+
+// See https://open.feishu.cn/document/ukTMukTMukTM/uEDO04SM4QjLxgDN
+def uploadToFeishu(url, imageData) {
+    assert url
+    assert imageData
+
+    def body = [
+        'image': imageData,
+        'image_type': "message"
+    ]
+
+    def token = getFeishuAccessToken()
+    def response = httpRequest(
+        url: url,
+        customHeaders: [[name: 'Authorization', value: "Bearer ${token}", maskValue: true]],
+        contentType: 'APPLICATION_FORM',
+        httpMode: 'POST',
+        requestBody: JsonOutput.toJson(body)
+    )
+
+    def imageKey = ''
+
+    def statusCode = response.status
+    def contentJson = readJSON(text: response.content)
+    def code = contentJson.code
+    if (code == 0) {
+        imageKey = contentJson.data.image_key
+    } else {
+        echo "ERROR: Upload image failed, error ${code}, message: ${contentJson.msg}"
+        currentBuild.result = 'FAILURE'
+    }
+
+    return imageKey
+}
+
+// See https://open.feishu.cn/document/ukTMukTMukTM/uIDMxEjLyATMx4iMwETM
+def sendImageToFeishu(url, channel, imageKey) {
+    def retry = 3
+    def chatId = feishuNotify.getChatId(channel)
+
+    def body = [
+        "chat_id": chatId,
+        "msg_type": "image",
+        "content": [
+            "image_key": imageKey
+        ]
+    ]
+
+    def requestBody = JsonOutput.toJson(body)
+
+    feishuNotify.sendMessage(url, requestBody, retry)
+}
+
+def uploadFtp(job, ftpDir) {
+    def metadata = METADATA.get(job)
+    assert metadata
+
+    def artifactName = sh(script: "basename ${metadata.url}", returnStdout: true).trim()
+
+    build(job: FTP_JOB, wait: true, parameters: [
+            string(name: 'HTTP_URL', value: METADATA.get(job).url),
+            string(name: 'FTP_DIR',  value: ftpDir)])
+
+    return "http://ftp.intranet-shenzhen.rog2.org/${ftpDir}/" + artifactName
+}
+
+def initMetadata() {
+    def put = { job, platform, glob->
+        def jobUrl = jenkinsApiUtils.getBuildUrl(job, 'lastSuccessfulBuild')
+        def number = getJenkinsBuildNumber(jobUrl)
+        def time = getJenkinsBuildDate(jobUrl)
+
+        def artifactUrl = glob ? getJenkinsArtifactUrl(job, number, glob) : getAppinhouseIOSUrl()
+        def appVersion = getAppVersion(number)
+        def metadata = [url: artifactUrl, version: appVersion, time: time, platform: platform]
+        METADATA.put(job, metadata)
+    }
+
+    put(env.ANDROID_JOB, 'Android', '*.apk')
+    put(env.IOS_JOB, 'iOS')
+    put(env.WINDOWS_JOB, 'Windows', '*.zip')
+}
+
+def createQRCode(Map params = [:]) {
+    def job = params.get('job')
+
+    def metadata = METADATA.get(job)
+    
+    def region = params.get('url') ? '深圳' : '北京'
+    def url = params.get('url', metadata.url)
+    def buildEnv = buildTargetUtils.getBuildEnv()
+    def text = "${buildEnv}-${metadata.version} ${region}\n ${metadata.time}"
+
+    sh "rm -vf ${env.QRCODE_IMAGE_DATA_FILE}"
+    sh """
+        python3 ${env.QRCODE_SCRIPT_DIR}/qrcode.py \
+            --url ${url} \
+            --platform ${metadata.platform} \
+            --output ${env.QRCODE_IMAGE_DATA_FILE} \
+            --text '${text}'
+    """
+    return readJSON (file: env.QRCODE_IMAGE_DATA_FILE)
+}
+
+def notifyAll() {
+    def androidMessage = "**Android-${METADATA.get(ANDROID_JOB).version}**\n" + 
+    "• 北京: <${METADATA.get(ANDROID_JOB).url}> \n" + 
+    "• 深圳: <${FTP_APK_URL}> \n<br/>"
+
+    def windowsMessage = "**Windows-${METADATA.get(WINDOWS_JOB).version}** \n" + 
+    "• 北京: <${METADATA.get(WINDOWS_JOB).url}> \n" + 
+    "• 深圳: <${FTP_CLIENT_URL}> \n<br/>"
+
+    def iosMessage = "**iOS-${METADATA.get(IOS_JOB).version}** \n" + 
+    "• <${METADATA.get(IOS_JOB).url}> \n<br/>"
+
+    def customMessage = "有建议和bug请发到大群里面~测试人员会进行记录与反馈的~"
+
+    def mesasge =  androidMessage + windowsMessage + iosMessage + customMessage
+
+    feishuNotify channel: FEISHU_CHANNEL, what: message
+}
+
+pipeline {
+    agent {
+        label 'os:linux'
+    }
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(
+            daysToKeepStr: '10',
+        ))
+        ansiColor('xterm')
+    }
+    parameters {
+        text(name: 'RELEASE_NOTES',
+            defaultValue: '',
+            description: '请填写版本更新内容')
+        booleanParam(name: 'UPLOAD_TO_SHENZHEN_FTP',
+            defaultValue: true,
+            description: '将客户端传输至深圳FTP')
+    }
+    environment {
+        ANDROID_JOB = "Pirates/Client/android/${env.BRANCH_NAME}"
+        IOS_JOB = "Pirates/Client/ios/${env.BRANCH_NAME}"
+        WINDOWS_JOB = "Pirates/Client/windows/${env.BRANCH_NAME}"
+        FTP_JOB = 'Pirates/Tools/shenzhen-ftp-transfer'
+
+        QRCODE_IMAGE_DATA_FILE = "${env.WORKSPACE}/image.json"
+        QRCODE_SCRIPT_DIR = "${env.WORKSPACE}/qrcode"
+    }
+    stages {
+        stage('Install packages') {
+            steps {
+                script {
+                    sh '''
+                        if [ ! "$(python3 -m pip show Pillow)" ]; then
+                            python3 -m pip install --user Pillow
+                        fi
+                        if [ ! "$(python3 -m pip show MyQR)" ]; then
+                            python3 -m pip install --user MyQR
+                        fi
+                    '''
+                }
+            }
+        }
+        stage('Checkout') {
+            steps {
+                svnCheckout folder: 'src/Tools/qa/qrcode', local: 'qrcode'
+            }
+        }
+        stage('Init Metadata') {
+            steps {
+                initMetadata()
+            }
+        }
+        stage('Upload ShenZhen FTP') {
+            when { expression { return params.UPLOAD_TO_SHENZHEN_FTP } }
+            steps {
+                script {
+                    FTP_APK_URL = uploadFtp(env.ANDROID_JOB, 'pirates/client/apk')
+                    FTP_CLIENT_URL = uploadFtp(env.WINDOWS_JOB, 'pirates/client/windows')
+                }
+            }
+        }
+        stage('Create QRCode') {
+            steps {
+                script {
+                    def apkQRCode = createQRCode job: env.ANDROID_JOB
+                    def iosQRCode = createQRCode job: env.IOS_JOB
+
+                    def apkImageKey = uploadToFeishu(UPLOAD_URL, apkQRCode.base64)
+                    def iosImageKey = uploadToFeishu(UPLOAD_URL, iosQRCode.base64)
+
+                    sendImageToFeishu url: PUSH_URL, channel: FEISHU_CHANNEL, imageKey: apkImageKey
+                    sendImageToFeishu url: PUSH_URL, channel: FEISHU_CHANNEL, imageKey: iosImageKey
+
+                    if (params.UPLOAD_TO_SHENZHEN_FTP) {
+                        def ftpApkQRCode = createQRCode job: env.ANDROID_JOB, url: FTP_APK_URL
+                        def ftpApkImageKey = uploadToFeishu(UPLOAD_URL, ftpApkQRCode.base64)
+                        sendImageToFeishu url: PUSH_URL, channel: FEISHU_CHANNEL, imageKey: ftpApkImageKey
+                    }
+                }
+            }
+        }
+        stage('Notify') {
+            steps {
+                notifyAll()
+            }
+        }
+    }
+}

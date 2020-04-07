@@ -168,6 +168,7 @@ def getTextField(tag, content) {
 def sendMessage(url, requestBody, retry) {
     if (retry < 0) {
         echo 'Failed to send message, retry reached max value.'
+        currentBuild.result = 'FAILURE'
         return
     }
     def feishuConf = loadFeishuConf()
