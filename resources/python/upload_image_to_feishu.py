@@ -4,13 +4,13 @@ import requests
 import argparse
 import json
 import base64
+import os
 
 def get_args():
     parser = argparse.ArgumentParser('uploader')
     required = parser.add_argument_group('required arguments')
     required.add_argument('--path', help='json file path includes base64 string of qrcode image', required=True)
     required.add_argument('--url', help='upload url', required=True)
-    required.add_argument('--token', help='access token to put image on feishu', required=True)
     return parser.parse_args()
 
 def upload_image(path, url, token):
@@ -44,4 +44,5 @@ def upload_image(path, url, token):
 
 if __name__ == '__main__':
     args = get_args()
-    upload_image(args.path, args.url, args.token)
+    token = os.getenv('TOKEN')
+    upload_image(args.path, args.url, token)
