@@ -11,3 +11,6 @@ channels:
   - id: JenkinsIntranet
     name: \[Pirates\]Jenkins
     chatId: oc
+  - id: Ops
+    name: '[Pirates]Ops'
+    chatId: oc_a145b72b6f86c15ef36c3bd596aad9c7

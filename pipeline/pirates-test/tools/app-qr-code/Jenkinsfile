@@ -7,6 +7,8 @@ FEISHU_CONF = feishuNotify.loadFeishuConf()
 
 UPLOAD_URL = FEISHU_CONF.imageUrl
 
+UPLOAD_SCRIPT = 'upload_image_to_feishu.py'
+
 PUSH_URL = FEISHU_CONF.pushUrl
 
 METADATA = [:]
@@ -37,43 +39,18 @@ def getJenkinsArtifactUrl(job, build, glob) {
     return urls[0]
 }
 
-def getFeishuAccessToken() {
-    def token = ''
-    withCredentials([usernamePassword(credentialsId: FEISHU_CONF.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
-        token = feishuNotify.getAccessToken(FEISHU_CONF.tokenUrl, env.APP_ID, env.APP_SECRET)
-    }
-    return token
-}
-
 // See https://open.feishu.cn/document/ukTMukTMukTM/uEDO04SM4QjLxgDN
-def uploadToFeishu(url, imageData) {
+def uploadToFeishu(url, imageDataFile) {
     assert url
-    assert imageData
-
-    def body = [
-        'image': imageData,
-        'image_type': "message"
-    ]
-
-    def token = getFeishuAccessToken()
-    def response = httpRequest(
-        url: url,
-        customHeaders: [[name: 'Authorization', value: "Bearer ${token}", maskValue: true]],
-        contentType: 'APPLICATION_FORM',
-        httpMode: 'POST',
-        requestBody: JsonOutput.toJson(body)
-    )
+    assert imageDataFile
 
     def imageKey = ''
-
-    def statusCode = response.status
-    def contentJson = readJSON(text: response.content)
-    def code = contentJson.code
-    if (code == 0) {
-        imageKey = contentJson.data.image_key
-    } else {
-        echo "ERROR: Upload image failed, error ${code}, message: ${contentJson.msg}"
-        currentBuild.result = 'FAILURE'
+    withCredentials([usernamePassword(credentialsId: FEISHU_CONF.credential, usernameVariable: 'APP_ID', passwordVariable: 'APP_SECRET')]) {
+        def token = feishuNotify.getAccessToken(FEISHU_CONF.tokenUrl, env.APP_ID, env.APP_SECRET)
+        imageKey = sh (
+            script: "python3 ${UPLOAD_SCRIPT} --path ${imageDataFile} --url ${url} --token ${token}",
+            returnStdout: true
+        ).trim()
     }
 
     return imageKey
@@ -85,10 +62,10 @@ def sendImageToFeishu(url, channel, imageKey) {
     def chatId = feishuNotify.getChatId(channel)
 
     def body = [
-        "chat_id": chatId,
-        "msg_type": "image",
-        "content": [
-            "image_key": imageKey
+        'chat_id': chatId,
+        'msg_type': "image",
+        'content': [
+            'image_key': imageKey
         ]
     ]
 
@@ -148,23 +125,60 @@ def createQRCode(Map params = [:]) {
     return readJSON (file: env.QRCODE_IMAGE_DATA_FILE)
 }
 
-def notifyAll() {
+def notifyFeishu() {
+    def retry = 3
+
     def androidMessage = "**Android-${METADATA.get(ANDROID_JOB).version}**\n" + 
     "• 北京: <${METADATA.get(ANDROID_JOB).url}> \n" + 
-    "• 深圳: <${FTP_APK_URL}> \n<br/>"
+    "• 深圳: <${FTP_APK_URL}> \n\n"
 
     def windowsMessage = "**Windows-${METADATA.get(WINDOWS_JOB).version}** \n" + 
     "• 北京: <${METADATA.get(WINDOWS_JOB).url}> \n" + 
-    "• 深圳: <${FTP_CLIENT_URL}> \n<br/>"
+    "• 深圳: <${FTP_CLIENT_URL}> \n\n"
 
     def iosMessage = "**iOS-${METADATA.get(IOS_JOB).version}** \n" + 
-    "• <${METADATA.get(IOS_JOB).url}> \n<br/>"
+    "• <${METADATA.get(IOS_JOB).url}> \n\n"
 
-    def customMessage = "有建议和bug请发到大群里面~测试人员会进行记录与反馈的~"
+    def customMessage = "有建议和bug请发到大群里面，测试人员会进行记录与反馈的！"
 
-    def mesasge =  androidMessage + windowsMessage + iosMessage + customMessage
+    def message = androidMessage + windowsMessage + iosMessage + customMessage
 
-    feishuNotify channel: FEISHU_CHANNEL, what: message
+    def chatId = feishuNotify.getChatId(FEISHU_CHANNEL)
+
+    feishuNotify.sendMessage(PUSH_URL, getRequestBody(chatId, message), retry)
+
+    if (params.RELEASE_NOTES) {
+        feishuNotify.sendMessage(PUSH_URL, getRequestBody(chatId, params.RELEASE_NOTES), retry)
+    }
+}
+
+def getRequestBody(chatId, message) {
+    def body = [
+        'chat_id': chatId,
+        'msg_type': 'interactive',
+        'card': getMessageCard(message)
+    ]
+
+    return JsonOutput.toJson(body)
+}
+
+def getMessageCard(message) {
+    def elements = []
+
+    def element = [
+        "tag": "div",
+        "text": feishuNotify.getTextField('lark_md', message)
+    ]
+    elements.add(element)
+
+    def messageCard = [
+        'config': [
+            "wide_screen_mode": true
+        ],
+        'elements': elements
+    ]
+
+    return messageCard
 }
 
 pipeline {
@@ -233,26 +247,28 @@ pipeline {
         stage('Create QRCode') {
             steps {
                 script {
+                    def uploader = libraryResource "python/${UPLOAD_SCRIPT}"
+                    writeFile file: "${env.WORKSPACE}/${UPLOAD_SCRIPT}", text: uploader
+
                     def apkQRCode = createQRCode job: env.ANDROID_JOB
+                    def apkImageKey = uploadToFeishu(UPLOAD_URL, env.QRCODE_IMAGE_DATA_FILE)
+                    sendImageToFeishu(PUSH_URL, FEISHU_CHANNEL, apkImageKey)
+
                     def iosQRCode = createQRCode job: env.IOS_JOB
-
-                    def apkImageKey = uploadToFeishu(UPLOAD_URL, apkQRCode.base64)
-                    def iosImageKey = uploadToFeishu(UPLOAD_URL, iosQRCode.base64)
-
-                    sendImageToFeishu url: PUSH_URL, channel: FEISHU_CHANNEL, imageKey: apkImageKey
-                    sendImageToFeishu url: PUSH_URL, channel: FEISHU_CHANNEL, imageKey: iosImageKey
+                    def iosImageKey = uploadToFeishu(UPLOAD_URL, env.QRCODE_IMAGE_DATA_FILE)
+                    sendImageToFeishu(PUSH_URL, FEISHU_CHANNEL, iosImageKey)
 
                     if (params.UPLOAD_TO_SHENZHEN_FTP) {
                         def ftpApkQRCode = createQRCode job: env.ANDROID_JOB, url: FTP_APK_URL
-                        def ftpApkImageKey = uploadToFeishu(UPLOAD_URL, ftpApkQRCode.base64)
-                        sendImageToFeishu url: PUSH_URL, channel: FEISHU_CHANNEL, imageKey: ftpApkImageKey
+                        def ftpApkImageKey = uploadToFeishu(UPLOAD_URL, env.QRCODE_IMAGE_DATA_FILE)
+                        sendImageToFeishu(PUSH_URL, FEISHU_CHANNEL, ftpApkImageKey)
                     }
                 }
             }
         }
         stage('Notify') {
             steps {
-                notifyAll()
+                notifyFeishu()
             }
         }
     }
