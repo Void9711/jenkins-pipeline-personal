@@ -4,5 +4,5 @@
 // Manage Jenkins -> Global Tool Configuration
 def call(String version, Closure body) {
     def androidSdkHome = tool name: "AndroidSdk-${version}", type: 'com.cloudbees.jenkins.plugins.customtools.CustomTool'
-    withEnv(["PATH+ANDROID_HOME=${androidSdkHome}"], body)
+    withEnv(["ANDROID_HOME=${androidSdkHome}"], body)
 }
