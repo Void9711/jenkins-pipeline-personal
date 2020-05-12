@@ -71,6 +71,10 @@ function check_path()
     mkdir -pv ${deploy_dir_anti}
     REPORTINFO "Cant find path ${deploy_dir_anti}, created"
   fi
+  if [[ ! -d "${LOG_PATH}" ]]; then
+    mkdir -pv ${LOG_PATH}
+    REPORTINFO "Cant find path ${LOG_PATH}, created"
+  fi
 }
 
 function check_param()
