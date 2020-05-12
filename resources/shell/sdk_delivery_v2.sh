@@ -102,7 +102,7 @@ function delivery_anti
 function delivery()
 {
   cd ${update_path}${update_ver}
-  for i in `awk -F\  '{print $2}' sdkserver.sha256sum`; do
+  for i in *; do
     if [[ $i =~ channels(.*) ]]; then
       REPORTINFO "\033[40;33m[$i in lib/channels]\033[0m"
       delivery_war $i ${deploy_dir_lib_channels}
