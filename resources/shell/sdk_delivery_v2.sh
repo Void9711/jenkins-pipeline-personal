@@ -63,6 +63,14 @@ function check_path()
     mkdir -pv ${deploy_dir_lib_channels}
     REPORTINFO "Cant find SDK-inner path ${deploy_dir_lib_channels}, created"
   fi
+  if [[ ! -d "${deploy_dir_job}" ]]; then
+    mkdir -pv ${deploy_dir_job}
+    REPORTINFO "Cant find SDK-inner path ${deploy_dir_job}, created"
+  fi
+  if [[ ! -d "${deploy_dir_anti}" ]]; then
+    mkdir -pv ${deploy_dir_anti}
+    REPORTINFO "Cant find SDK-inner path ${deploy_dir_anti}, created"
+  fi
 }
 
 function check_param()
