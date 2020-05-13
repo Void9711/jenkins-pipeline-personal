@@ -114,8 +114,8 @@ function delivery_anti
 function delivery()
 {
   cd ${update_path}${update_ver}
-  for i in *; do
-    if [[ $i =~ channels(.*) ]]; then
+  for i in `find *`; do
+    if [[ $i =~ channels(.+) ]]; then
       REPORTINFO "\033[40;33m[$i in lib/channels]\033[0m"
       delivery_war $i ${deploy_dir_lib_channels}
     elif [[ "${sdk_out[*]}" =~ $i ]]; then
