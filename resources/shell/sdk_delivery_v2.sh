@@ -17,7 +17,7 @@ LOG_NAME="delivery.log"
 
 
 param_cnt=$#
-update_ver=$1
+update_ver="deploy"
 
 function REPORT
 {
@@ -52,16 +52,16 @@ function check_path()
   fi
   #? Why must below directories exist?
   if [[ ! -d "${deploy_dir_out}" ]]; then
-    mkdir -pv ${update_path}
+    mkdir -pv ${deploy_dir_out}
     REPORTINFO "Cant find path ${deploy_dir_out}, created."
   fi
   if [[ ! -d "${deploy_dir_inner}" ]]; then
     mkdir -pv ${deploy_dir_inner}
     REPORTINFO "Cant find path ${deploy_dir_inner}, created"
   fi
-  if [[ ! -d "${deploy_dir_lib_channels}" ]]; then
-    mkdir -pv ${deploy_dir_lib_channels}
-    REPORTINFO "Cant find path ${deploy_dir_lib_channels}, created"
+  if [[ ! -d "${deploy_dir_lib_channels}/channels" ]]; then
+    mkdir -pv ${deploy_dir_lib_channels}/channels
+    REPORTINFO "Cant find path ${deploy_dir_lib_channels}/channels, created"
   fi
   if [[ ! -d "${deploy_dir_job}" ]]; then
     mkdir -pv ${deploy_dir_job}
@@ -79,9 +79,6 @@ function check_path()
 
 function check_param()
 {
-  if [[ ${param_cnt} -ne 1 ]];then
-    REPORTERROR "Please check param."
-  fi
   #? Why must this directory exist?
   if [[ ! -d "${update_path}${update_ver}" ]]; then
     REPORTERROR "Cant find update path ${update_path}${update_ver}."
@@ -131,7 +128,7 @@ function delivery()
       REPORTINFO "\033[40;33m[$i in sdk_anti]\033[0m"
       delivery_anti $i ${deploy_dir_anti}
     else
-      REPORTERROR "$i is unknown, please check."
+      REPORTINFO "$i is unknown."
     fi
   done
 }
