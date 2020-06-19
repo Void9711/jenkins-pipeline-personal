@@ -1,5 +1,7 @@
 #!/usr/bin/env groovy
 
+import groovy.json.JsonOutput
+
 def call(String id, boolean debug = false) {
     def resource = libraryResource 'projects.yml'
     def settings = readYaml(text: resource)
