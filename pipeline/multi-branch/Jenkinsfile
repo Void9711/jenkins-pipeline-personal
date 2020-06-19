@@ -31,6 +31,11 @@ pipeline {
         ansiColor('xterm')
     }
     stages {
+        stage('Project') {
+            steps {
+                echo dailyPollSCMSchedule('Pirates')
+            }
+        }
         stage('Build Engine') {
             steps {
                 copyArtifactFromMapAutomation 'src/Content/Maps/LV_FFA_Island/Sublevel_A'
