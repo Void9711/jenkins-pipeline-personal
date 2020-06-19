@@ -7,17 +7,20 @@ def call(String id, boolean debug = false) {
     def settings = readYaml(text: resource)
     def projects = settings.projects
 
+    def ret = ''
     projects.each {
         project -> 
         if (project.id == id) {
             if (debug) {
                 printProject(project)
             }
-            return project
+            ret = project
         }
     }
-    echo "Requested project ${id} not found."
-    return ''
+    if (!ret) {
+        echo "Requested project ${id} not found."
+    }
+    return ret
 }
 
 def printProject(project) {
