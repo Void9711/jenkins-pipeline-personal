@@ -2,6 +2,7 @@
 
 def call(String project) {
     def projectSettings = loadProject(project)
+    print(projectSettings)
     def schedule = ''
     if (!projectSettings) {
         echo "[ERROR] Failed to load pollscm schedule for project ${project}."
