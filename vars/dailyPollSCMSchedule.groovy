@@ -10,11 +10,13 @@ def call(String project) {
     }
 
     if (env.BRANCH_NAME == 'master') {
+        print(projectSettings.pollscm-schedule)
         projectSettings.pollscm-schedule.each {
             buildTime -> 
             schedule += buildTime
             schedule.join('\n')
         }
     }
+    echo schedule
     return schedule
 }
