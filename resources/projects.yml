@@ -1,19 +1,19 @@
 projects:
   - id: Pirates
     name: 'cmsj'
-    pollscm-schedule:
+    pollscm:
       - '0 4 * * *'
       - '0 12 * * *'
       - '0 18 * * *'
   - id: SGSDK
     name: 'SGSDK'
-    pollscm-schedule:
+    pollscm:
       - 'H 6 * * *'
       - 'H 14 * * *'
       - 'H 20 * * *'
   - id: UOP
     name: 'yhyypt'
-    pollscm-schedule:
+    pollscm:
       - 'H 5 * * *'
       - 'H 13 * * *'
       - 'H 19 * * *'

@@ -11,8 +11,8 @@ def call(String project) {
     }
 
     if (env.BRANCH_NAME == 'master') {
-        print(projectSettings.pollscm-schedule)
-        projectSettings.pollscm-schedule.each {
+        print(projectSettings.pollscm)
+        projectSettings.pollscm.each {
             buildTime -> 
             schedule += buildTime
             schedule.join('\n')
