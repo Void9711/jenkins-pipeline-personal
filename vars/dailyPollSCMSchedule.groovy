@@ -18,6 +18,6 @@ def call(String project) {
             schedule.join('\n')
         }
     }
-    echo schedule
+    print(schedule)
     return schedule
 }
