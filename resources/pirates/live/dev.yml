@@ -1,0 +1,10 @@
+aws:
+  s3:
+    bucket:
+      client: pirates-dev
+        prefix: client/
+      server: pirates-dev
+        prefix: server/artifact/
+  autoscaling:
+    dungeon:
+      enabled: true
