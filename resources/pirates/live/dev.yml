@@ -11,6 +11,12 @@ aws:
     dungeon:
       enabled: true
 
+levant:
+  deploy:
+    approve:
+      enable: true
+    approvers: ['a', 'b', 'c', 'd', 'e', 'f']
+
 nomad:
   addr: https://nomad.example.com
   token: pirates-dev.nomad
