@@ -13,3 +13,4 @@ aws:
 
 nomad:
   addr: https://nomad.example.com
+  token: pirates-dev.nomad
