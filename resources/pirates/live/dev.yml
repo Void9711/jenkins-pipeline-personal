@@ -2,8 +2,10 @@ aws:
   s3:
     bucket:
       client: pirates-dev
+      client:
         prefix: client/
       server: pirates-dev
+      server:
         prefix: server/artifact/
   autoscaling:
     dungeon:
