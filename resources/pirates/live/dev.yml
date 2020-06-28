@@ -15,7 +15,7 @@ levant:
   deploy:
     approve:
       enable: true
-    approvers: 'a, b, c, d, e, f'
+    approvers: a, b, c, d, e, f
 
 nomad:
   addr: https://nomad.example.com
