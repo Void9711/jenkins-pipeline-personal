@@ -1,0 +1,20 @@
+#!/usr/bin/env groovy
+
+pipeline {
+    agent any
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(
+            daysToKeepStr: '15'
+        ))
+        ansiColor('xterm')
+    }
+    stages {
+        stage('Nothing') {
+            steps {
+                echo "========Do nothing========"
+            }
+        }
+    }
+}
