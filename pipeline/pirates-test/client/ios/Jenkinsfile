@@ -7,7 +7,7 @@ patching = new Patching(this)
 def getWorkspace() {
     def gitBranchName = env.BRANCH_NAME ?: 'master'
     def workspace = gitBranchName == 'master' ? 'master' : getAppVersion.getReleaseVersion()
-    return "/home/pirates/jenkins/workspace/Personal_Client_ios/${workspace}"
+    return "/Users/pirates/jenkins/workspace/Personal_Client_ios/${workspace}"
 }
 
 pipeline{
