@@ -13,8 +13,10 @@ def getWorkspace(platform) {
 
 pipeline{
     agent {
-        label "pirates:${params.TARGET_PLATFORM}"
-        customWorkspace getWorkspace(params.TARGET_PLATFORM)
+        node {
+            label "pirates:${params.TARGET_PLATFORM}"
+            customWorkspace getWorkspace(params.TARGET_PLATFORM)
+        }
     }
     options {
         skipDefaultCheckout()
