@@ -20,7 +20,6 @@ pipeline{
     }
     options {
         skipDefaultCheckout()
-        disableConcurrentBuilds()
         buildDiscarder(logRotator(
             daysToKeepStr: '15'
         ))
