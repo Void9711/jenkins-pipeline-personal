@@ -40,7 +40,7 @@ pipeline{
                         'isEmpty': false
                     ]
                     writeYaml file: 'datas.yaml', data: amap
-                    build wait: false, 'Personal/taoshuang/pirates-client-detach-test/upload-debug-symbol', parameters: patching.mapToBuildParameters([
+                    build wait: false, job: 'Personal/taoshuang/pirates-client-detach-test/upload-debug-symbol', parameters: patching.mapToBuildParameters([
                         'TARGET_PLATFORM': 'android',
                         'BRANCH_NAME': env.BRANCH_NAME ?: 'master'
                     ])
