@@ -34,11 +34,6 @@ pipeline{
             defaultValue: '')
     }
     stages {
-        stage('Clean') {
-            steps {
-                cleanWs()
-            }
-        }
         stage('Sleep to Wait') {
             steps {
                 sh 'sleep 10'
