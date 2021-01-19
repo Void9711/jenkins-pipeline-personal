@@ -1,0 +1,56 @@
+#!/usr/bin/env groovy
+
+def getPlatforms() {
+    return ['android', 'ios'].join('\n')
+}
+
+def getWorkspace(platform) {
+    def gitBranchName = env.BRANCH_NAME ?: 'master'
+    def workspace = gitBranchName == 'master' ? 'master' : getAppVersion.getReleaseVersion()
+    return platform == 'android' ? "/home/pirates/jenkins/workspace/Personal_Client_android/${workspace}" : 
+        "/Users/pirates/jenkins/workspace/Personal_Client_ios/${workspace}"
+}
+
+pipeline{
+    agent {
+        label "pirates:${params.TARGET_PLATFORM}"
+        customWorkspace getWorkspace(params.TARGET_PLATFORM)
+    }
+    options {
+        skipDefaultCheckout()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(
+            daysToKeepStr: '15'
+        ))
+        ansiColor('xterm')
+    }
+    parameters {
+        choice(name: 'TARGET_PLATFORM',
+            choices: getPlatforms(),
+            description: 'Platform. Android or iOS.')
+        string(name: 'BRANCH_NAME',
+            defaultValue: '')
+    }
+    stages {
+        stage('Clean') {
+            steps {
+                cleanWs()
+            }
+        }
+        stage('Sleep to Wait') {
+            steps {
+                sh 'sleep 10'
+            }
+        }
+        stage('Upload Debug Symbol') {
+            steps {
+                script {
+                    def datas = readYaml file: 'datas.yaml'
+                    assert datas.something == 'my datas'
+                    assert datas.size == 3
+                    assert datas.isEmpty == false
+                }
+            }
+        }
+    }
+}
