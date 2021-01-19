@@ -4,7 +4,7 @@ import com.kingsoft.shiyou.pirates.Patching
 
 patching = new Patching(this)
 
-def getWorkSpace() {
+def getWorkspace() {
     def gitBranchName = env.BRANCH_NAME ?: 'master'
     def workspace = gitBranchName == 'master' ? 'master' : getAppVersion.getReleaseVersion()
     return "/home/pirates/jenkins/workspace/Personal_Client_android/${workspace}"
