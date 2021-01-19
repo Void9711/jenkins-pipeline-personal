@@ -41,6 +41,7 @@ pipeline{
                     ]
                     writeYaml file: 'datas.yaml', data: amap
                     build wait: false, job: 'Personal/taoshuang/pirates-client-detach-test/upload-debug-symbol', parameters: patching.mapToBuildParameters([
+                        'NODE_NAME': env.NODE_NAME,
                         'TARGET_PLATFORM': 'ios',
                         'BRANCH_NAME': env.BRANCH_NAME ?: 'master'
                     ])

@@ -49,8 +49,6 @@ pipeline{
                     assert datas.something == 'my datas'
                     assert datas.size == 3
                     assert datas.isEmpty == false
-
-                    println env.NODE_NAME
                 }
             }
         }
