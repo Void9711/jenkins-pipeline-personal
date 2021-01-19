@@ -14,7 +14,7 @@ def getWorkspace(platform) {
 pipeline{
     agent {
         node {
-            label "pirates:${params.TARGET_PLATFORM}"
+            label params.NODE_NAME
             customWorkspace getWorkspace(params.TARGET_PLATFORM)
         }
     }
@@ -27,6 +27,9 @@ pipeline{
         ansiColor('xterm')
     }
     parameters {
+        string(name: 'NODE_NAME',
+            defaultValue: '',
+            description: 'Builder node name which builds the client, examples: linux-4, mac-3.')
         choice(name: 'TARGET_PLATFORM',
             choices: getPlatforms(),
             description: 'Platform. Android or iOS.')
