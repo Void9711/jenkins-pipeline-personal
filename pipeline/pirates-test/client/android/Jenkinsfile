@@ -9,6 +9,7 @@ def getWorkSpace() {
 pipeline{
     agent {
         label "pirates:android"
+        customWorkspace getWorkspace()
     }
     options {
         skipDefaultCheckout()
