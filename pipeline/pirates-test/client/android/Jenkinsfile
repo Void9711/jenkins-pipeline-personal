@@ -29,6 +29,7 @@ pipeline{
         stage('Clean') {
             steps {
                 cleanWs()
+                println env.NODE_NAME
             }
         }
         stage('Upload Debug Symbol') {

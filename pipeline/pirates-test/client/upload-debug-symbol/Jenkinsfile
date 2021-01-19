@@ -5,7 +5,7 @@ def getPlatforms() {
 }
 
 def getWorkspace(platform) {
-    def gitBranchName = env.BRANCH_NAME ?: 'master'
+    def gitBranchName = params.BRANCH_NAME ?: 'master'
     def workspace = gitBranchName == 'master' ? 'master' : getAppVersion.getReleaseVersion()
     return platform == 'android' ? "/home/pirates/jenkins/workspace/Personal_Client_android/${workspace}" : 
         "/Users/pirates/jenkins/workspace/Personal_Client_ios/${workspace}"
@@ -46,6 +46,8 @@ pipeline{
                     assert datas.something == 'my datas'
                     assert datas.size == 3
                     assert datas.isEmpty == false
+
+                    println env.NODE_NAME
                 }
             }
         }
